@@ -6,9 +6,11 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type App struct {
@@ -29,7 +31,11 @@ func (a *App) Start() {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	opts := []grpc.ServerOption{}
+	opts := []grpc.ServerOption{
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionAge: time.Minute * 5,
+		}),
+	}
 	s := grpc.NewServer(opts...)
 	proto.RegisterGreetServiceServer(s, &App{})
 	if err := s.Serve(lis); err != nil {
