@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/kubernetes"
 	"github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/proto"
 	"google.golang.org/grpc"
 )
@@ -53,12 +54,17 @@ func (a *App) setupGreetClient() error {
 	serverHost := "localhost"
 	serverPort := "50051"
 
-	if host, ok := os.LookupEnv("GRPC_SERVER_HOST"); ok {
-		serverHost = host
-	}
-
 	if port, ok := os.LookupEnv("GRPC_SERVER_PORT"); ok {
 		serverPort = port
+	}
+
+	client, err := kubernetes.GetClusterClient()
+	if err != nil {
+		fmt.Printf("error while creating client: %s\n", err.Error())
+	}
+
+	if host := kubernetes.GetServiceDnsName(client, os.Getenv("GRPC_SVC"), os.Getenv("POD_NAMESPACE")); len(host) > 0 {
+		serverHost = host
 	}
 
 	servAddr := fmt.Sprintf("%s:%s", serverHost, serverPort)
@@ -67,6 +73,8 @@ func (a *App) setupGreetClient() error {
 
 	a.conn, err = grpc.Dial(
 		servAddr,
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithBlock(),
 		opts,
 	)
 	if err != nil {
