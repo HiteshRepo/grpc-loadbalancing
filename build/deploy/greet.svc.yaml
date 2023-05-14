@@ -13,4 +13,4 @@ spec:
       targetPort: 50051
   selector:
     run: greetserver
-  type: ClusterIP
+  clusterIP: None

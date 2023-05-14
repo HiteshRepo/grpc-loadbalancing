@@ -18,8 +18,6 @@ spec:
           ports:
             - containerPort: 9091
           env:
-            - name: GRPC_SERVER_HOST
-              value: greetserver.default.svc.cluster.local
             - name: GRPC_SVC
               value: greetserver
             - name: POD_NAMESPACE
