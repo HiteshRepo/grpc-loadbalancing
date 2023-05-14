@@ -1,0 +1,73 @@
+version: "3"
+
+tasks:
+  generate:
+    desc: "Generate code"
+    cmds:
+      - protoc --go_out=internal/pkg --go-grpc_out=internal/pkg internal/pkg/proto/greet.proto
+
+  compile-greet-server:
+    cmds:
+      - go build -a -o ./build/out/greetServer cmd/greetserver/main.go
+
+  compile-greet-client:
+    cmds:
+      - go build -a -o ./build/out/greetClient cmd/greetclient/main.go
+
+  deps:
+    cmds:
+      - go mod download
+
+  clean:
+    cmds:
+      - go clean -testcache
+      - rm -rf ./build/out
+
+  free-up-serverport:
+    cmds:
+      - sudo kill -9 $(sudo netstat -lnp | grep {{.serverport}} |  awk '{print $NF}' | awk -F '/' '{print $1}')
+    vars:
+      serverport: 50051
+
+  package-greet-client:
+    deps: [compile-greet-client]
+    cmds:
+      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:4.0 .
+
+  publish-greet-client:
+    deps: [package-greet-client]
+    cmds:
+      - docker push hiteshpattanayak/greet-client:4.0
+
+  package-greet-server:
+    cmds:
+      - docker build --file build/Dockerfiles/Dockerfile.greetServer -t hiteshpattanayak/greet-server:1.0 .
+
+  publish-greet-server:
+    deps: [package-greet-server]
+    cmds:
+      - docker push hiteshpattanayak/greet-server:1.0
+
+  run-greet-server-cmd:
+    deps: [compile-greet-server]
+    cmds:
+      - ./build/out/greetServer
+
+  run-greet-client-cmd:
+    deps: [compile-greet-client]
+    cmds:
+      - ./build/out/greetClient
+
+  run-greet-server-k8s:
+    deps: [publish-greet-server]
+    cmds:
+      - kubectl run greetserver --image=hiteshpattanayak/greet-server:1.0 --restart=Never
+
+  run-greet-client-k8s:
+    deps: [publish-greet-client]
+    cmds:
+      - kubectl run greetclient --image=hiteshpattanayak/greet-client:1.0 --restart=Never
+
+  get-dns-name-of-svc:
+    cmds:
+      - kubectl exec greetclient -- nslookup greetserver | grep Name | awk -F ':' '{print $1}'
