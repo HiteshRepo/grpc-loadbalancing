@@ -8,14 +8,17 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/kubernetes"
 	"github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/proto"
+	lapb "github.com/hiteshrepo/grpc-loadbalancing/internal/pkg/proto/lookaside"
 	"google.golang.org/grpc"
 )
 
 type App struct {
 	client proto.GreetServiceClient
 	conn   *grpc.ClientConn
+
+	lookasideConn   *grpc.ClientConn
+	lookasideClient lapb.LookasideClient
 }
 
 type GreetingRequest struct {
@@ -24,9 +27,9 @@ type GreetingRequest struct {
 }
 
 func (a *App) Start() {
-	err := a.setupGreetClient()
+	err := a.setupLookasideClient()
 	if err != nil {
-		log.Printf("could not setup greet client: %v", err)
+		log.Printf("could not setup lookaside client: %v", err)
 		return
 	}
 
@@ -45,44 +48,62 @@ func (a *App) Start() {
 	router.Run(fmt.Sprintf("0.0.0.0:%s", port))
 }
 
-func (a *App) setupGreetClient() error {
+func (a *App) setupGreetClient(host string) error {
 	var err error
 
 	fmt.Println("Starting greet client")
 
 	opts := grpc.WithInsecure()
-	serverHost := "localhost"
 	serverPort := "50051"
 
 	if port, ok := os.LookupEnv("GRPC_SERVER_PORT"); ok {
 		serverPort = port
 	}
 
-	client, err := kubernetes.GetClusterClient()
-	if err != nil {
-		fmt.Printf("error while creating client: %s\n", err.Error())
-	}
+	servAddr := fmt.Sprintf("%s:%s", host, serverPort)
 
-	if host := kubernetes.GetServiceDnsName(client, os.Getenv("GRPC_SVC"), os.Getenv("POD_NAMESPACE")); len(host) > 0 {
-		serverHost = host
-	}
-
-	servAddr := fmt.Sprintf("%s:%s", serverHost, serverPort)
-
-	fmt.Println("dialing", servAddr)
+	fmt.Println("dialing greet server", servAddr)
 
 	a.conn, err = grpc.Dial(
 		servAddr,
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
-		grpc.WithBlock(),
 		opts,
 	)
 	if err != nil {
-		log.Printf("could not connect: %v", err)
+		log.Printf("could not connect greet server: %v", err)
 		return err
 	}
 
 	a.client = proto.NewGreetServiceClient(a.conn)
+
+	return nil
+}
+
+func (a *App) setupLookasideClient() error {
+	var err error
+
+	fmt.Println("Starting lookaside client")
+
+	opts := grpc.WithInsecure()
+	serverPort := "50055"
+
+	if port, ok := os.LookupEnv("LB_PORT"); ok {
+		serverPort = port
+	}
+
+	servAddr := fmt.Sprintf("%s:%s", os.Getenv("LB_SVC_NAME"), serverPort)
+
+	fmt.Println("dialing lookaside server", servAddr)
+
+	a.lookasideConn, err = grpc.Dial(
+		servAddr,
+		opts,
+	)
+	if err != nil {
+		log.Printf("could not connect lookaside server: %v", err)
+		return err
+	}
+
+	a.lookasideClient = lapb.NewLookasideClient(a.lookasideConn)
 
 	return nil
 }
@@ -92,6 +113,23 @@ func (a *App) Shutdown() {
 }
 
 func (a *App) doUnary(firstName, lastName string) string {
+	r, err := a.lookasideClient.Resolve(context.Background(), &lapb.Request{
+		Router:    lapb.Request_ROUNDROBIN,
+		Service:   os.Getenv("GRPC_SVC"),
+		Namespace: os.Getenv("POD_NAMESPACE"),
+	})
+
+	if err != nil {
+		log.Printf("could not resolve greet server address: %v", err)
+		return ""
+	}
+
+	err = a.setupGreetClient(r.GetAddress())
+	if err != nil {
+		log.Printf("could not setup greet client: %v", err)
+		return ""
+	}
+
 	req := &proto.GreetingRequest{
 		Greeting: &proto.Greeting{
 			FirstName: firstName,
@@ -102,6 +140,7 @@ func (a *App) doUnary(firstName, lastName string) string {
 	if err != nil {
 		log.Fatalf("error while calling greet rpc : %v", err)
 	}
+
 	return fmt.Sprintf("reponse from Greet rpc: %v", res.Result)
 }
 

@@ -5,6 +5,7 @@ tasks:
     desc: "Generate code"
     cmds:
       - protoc --go_out=internal/pkg --go-grpc_out=internal/pkg internal/pkg/proto/greet.proto
+      - protoc --go_out=internal/pkg/proto --go-grpc_out=internal/pkg/proto internal/pkg/proto/lookaside/lookaside.proto
 
   compile-greet-server:
     cmds:
@@ -13,6 +14,10 @@ tasks:
   compile-greet-client:
     cmds:
       - go build -a -o ./build/out/greetClient cmd/greetclient/main.go
+
+  compile-lookaside:
+    cmds:
+      - go build -a -o ./build/out/lookaside cmd/lookaside/main.go
 
   deps:
     cmds:
@@ -32,12 +37,12 @@ tasks:
   package-greet-client:
     deps: [compile-greet-client]
     cmds:
-      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:4.0 .
+      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:17.0 .
 
   publish-greet-client:
     deps: [package-greet-client]
     cmds:
-      - docker push hiteshpattanayak/greet-client:4.0
+      - docker push hiteshpattanayak/greet-client:17.0
 
   package-greet-server:
     cmds:
@@ -47,6 +52,16 @@ tasks:
     deps: [package-greet-server]
     cmds:
       - docker push hiteshpattanayak/greet-server:1.0
+
+  package-lookaside:
+    deps: [compile-lookaside]
+    cmds:
+      - docker build --file build/Dockerfiles/Dockerfile.lookaside -t hiteshpattanayak/lookaside:9.0 .
+
+  publish-lookaside:
+    deps: [package-lookaside]
+    cmds:
+      - docker push hiteshpattanayak/lookaside:9.0
 
   run-greet-server-cmd:
     deps: [compile-greet-server]

@@ -15,8 +15,12 @@ import (
 const DefaultKubeConfigPath = "/home/hitesh/.kube/config"
 
 func GetClusterClient() (*kubernetes.Clientset, error) {
-	kubeconfig := flag.String("kubeconfig", "/home/hitesh/.kube/config", "location of your kubeconfig file")
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	var kubeconfig string
+	if flag.Lookup("kubeconfig") == nil {
+		cnf := flag.String("kubeconfig", "/home/hitesh/.kube/config", "location of your kubeconfig file")
+		kubeconfig = *cnf
+	}
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		log.Printf("error while building config from kubeconfig file location : %s\n", err.Error())
 		log.Println("fetching config within cluster")
@@ -47,4 +51,29 @@ func GetServiceDnsName(clientset *kubernetes.Clientset, serviceName, namespace s
 	}
 
 	return fmt.Sprintf("dns:///%s", hostname)
+}
+
+func GetEndpointsOfService(clientset *kubernetes.Clientset, serviceName, namespace string) []string {
+	endpoints, err := clientset.CoreV1().Endpoints(namespace).Get(context.Background(), serviceName, metav1.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	addresses := make([]string, 0)
+	for _, subset := range endpoints.Subsets {
+		for _, address := range subset.Addresses {
+			addresses = append(addresses, address.IP)
+		}
+	}
+
+	return addresses
+}
+
+func GetPodIpByPodName(clientset *kubernetes.Clientset, podName, namespace string) string {
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return pod.Status.PodIP
 }
