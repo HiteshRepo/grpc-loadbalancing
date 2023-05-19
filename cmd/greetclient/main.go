@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	a := greetclient.App{}
+	a := greetclient.NewGreetClient()
 	a.Start()
 	<-interrupt()
 	a.Shutdown()

@@ -7,7 +7,7 @@ metadata:
   namespace: default
 spec:
   containers:
-    - image: hiteshpattanayak/greet-client:17.0
+    - image: hiteshpattanayak/greet-client:19.0
       name: greetclient
       env:
         - name: GRPC_SERVER_HOST

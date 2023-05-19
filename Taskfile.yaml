@@ -37,12 +37,12 @@ tasks:
   package-greet-client:
     deps: [compile-greet-client]
     cmds:
-      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:17.0 .
+      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:19.0 .
 
   publish-greet-client:
     deps: [package-greet-client]
     cmds:
-      - docker push hiteshpattanayak/greet-client:17.0
+      - docker push hiteshpattanayak/greet-client:19.0
 
   package-greet-server:
     cmds:

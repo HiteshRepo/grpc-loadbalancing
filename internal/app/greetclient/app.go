@@ -14,11 +14,19 @@ import (
 )
 
 type App struct {
-	client proto.GreetServiceClient
-	conn   *grpc.ClientConn
+	greetClients       map[string]proto.GreetServiceClient
+	conn               map[string]*grpc.ClientConn
+	currentGreetClient proto.GreetServiceClient
 
 	lookasideConn   *grpc.ClientConn
 	lookasideClient lapb.LookasideClient
+}
+
+func NewGreetClient() *App {
+	return &App{
+		greetClients: make(map[string]proto.GreetServiceClient),
+		conn:         make(map[string]*grpc.ClientConn),
+	}
 }
 
 type GreetingRequest struct {
@@ -49,8 +57,6 @@ func (a *App) Start() {
 }
 
 func (a *App) setupGreetClient(host string) error {
-	var err error
-
 	fmt.Println("Starting greet client")
 
 	opts := grpc.WithInsecure()
@@ -60,20 +66,27 @@ func (a *App) setupGreetClient(host string) error {
 		serverPort = port
 	}
 
-	servAddr := fmt.Sprintf("%s:%s", host, serverPort)
+	if c, ok := a.greetClients[host]; !ok {
+		servAddr := fmt.Sprintf("%s:%s", host, serverPort)
 
-	fmt.Println("dialing greet server", servAddr)
+		fmt.Println("dialing greet server", servAddr)
 
-	a.conn, err = grpc.Dial(
-		servAddr,
-		opts,
-	)
-	if err != nil {
-		log.Printf("could not connect greet server: %v", err)
-		return err
+		conn, err := grpc.Dial(
+			servAddr,
+			opts,
+		)
+		if err != nil {
+			log.Printf("could not connect greet server: %v", err)
+			return err
+		}
+
+		a.conn[host] = conn
+
+		a.currentGreetClient = proto.NewGreetServiceClient(conn)
+		a.greetClients[host] = a.currentGreetClient
+	} else {
+		a.currentGreetClient = c
 	}
-
-	a.client = proto.NewGreetServiceClient(a.conn)
 
 	return nil
 }
@@ -109,7 +122,9 @@ func (a *App) setupLookasideClient() error {
 }
 
 func (a *App) Shutdown() {
-	a.conn.Close()
+	for _, conn := range a.conn {
+		conn.Close()
+	}
 }
 
 func (a *App) doUnary(firstName, lastName string) string {
@@ -136,7 +151,7 @@ func (a *App) doUnary(firstName, lastName string) string {
 			LastName:  lastName,
 		},
 	}
-	res, err := a.client.Greet(context.Background(), req)
+	res, err := a.currentGreetClient.Greet(context.Background(), req)
 	if err != nil {
 		log.Fatalf("error while calling greet rpc : %v", err)
 	}
