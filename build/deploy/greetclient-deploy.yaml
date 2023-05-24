@@ -13,7 +13,7 @@ spec:
         run: greetclient
     spec:
       containers:
-        - image: hiteshpattanayak/greet-client:4.0
+        - image: hiteshpattanayak/greet-client:11.0
           name: greetclient
           ports:
             - containerPort: 9091
