@@ -1,0 +1,98 @@
+curl --request POST \
+  --url http://localhost:9091/greet \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"first_name": "Hitesh",
+	"last_name": "Pattanayak"
+}'
+
+
+curl --request POST \
+  --url http://greet.com/greet \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"first_name": "Hitesh",
+	"last_name": "Pattanayak"
+}'
+
+curl --request POST \
+  --url http://172.17.0.10:9091/greet \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"first_name": "Hitesh",
+	"last_name": "Pattanayak"
+}'
+
+
+kubectl create clusterrolebinding service-reader-binding --clusterrole=service-reader --serviceaccount=default:default
+
+
+6695032960
+
+
+
+greet server pod
+
+greet client pod
+
+greet server deploy - to have a HA greet grpc server
+
+greet client deploy - to have a HA gateway
+
+greet server service  - to load balance greet server pods - does not work - because of grpc long lasting TCP connection feature
+
+greet client service - to not directly access gateway pods
+
+greet ingress - to expose gateway to outside of cluster
+minikube by default does not have ingress enabled by default
+check enabled or not: `minikube addons list`
+enable ingress addon: `minikube addons enable ingress`
+
+greet cluster role - gateway uses 'client-go' library along with inclusterconfig to fetch service details. Since the pod is assigned default service account, it by default does not have access to fetch service details. Hence the cluster role.
+
+greet cluster role binding - to add greet cluster role to default service account
+
+hiteshpattanayak/greet-client:4.0 -> normal client
+
+in order to achieve load balancing on client side
+hiteshpattanayak/greet-client:11.0 -> client side LB client
+- set load balancing policy and with block
+a.conn, err = grpc.Dial(
+		servAddr,
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithBlock(),
+		opts,
+	)
+- create headless clusterip service
+- connect to headless clusterip service using dns address
+
+hiteshpattanayak/greet-client:17.0 -> lookaside LB
+
+gRPC has many benefits, like:
+...
+That is the reason, it is extensively used for internal microservice based communications
+...
+But it has a known problem: load balancing
+
+In short, L4 load balancers balance at the connection level, which for HTTP 1.1 normally works just fine. But gRPC uses HTTP 2, where a single, long-lived connection is kept between an instance of the client and the server and all requests are multiplexed within it. So we would need a balancer working at the request level.
+....
+
+In this blogpost (https://www.infracloud.io/blogs/understanding-grpc-concepts-best-practices/), I spoke about gRPC in depth. But while explaining about a caveat of grpc which is load balancing, I did not leave a demoable setup to showcase the issue nor did I give executable solutions to the problem apart from just mentioning the solution.
+
+In this blogpost I would like to explain about it.
+
+In this link(https://kubernetes.io/blog/2018/11/07/grpc-load-balancing-on-kubernetes-without-tears/), it talks about how to use a service mesh like linkerd to achieve the load balancing. We can use istio as well.
+But what if we want to keep it simpler and we would not like to inculcate service mesh into our architecture due to certain constraints.
+
+Moreover, it is always handy to have solutions that can be quickly implemented and requires less maintenenace.
+
+
+
+
+
+
+	
+
+
+
+
