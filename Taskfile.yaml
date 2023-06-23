@@ -32,21 +32,21 @@ tasks:
   package-greet-client:
     deps: [compile-greet-client]
     cmds:
-      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:4.0 .
+      - docker build --file build/Dockerfiles/Dockerfile.greetClient -t hiteshpattanayak/greet-client:20.0 .
 
   publish-greet-client:
     deps: [package-greet-client]
     cmds:
-      - docker push hiteshpattanayak/greet-client:4.0
+      - docker push hiteshpattanayak/greet-client:20.0
 
   package-greet-server:
     cmds:
-      - docker build --file build/Dockerfiles/Dockerfile.greetServer -t hiteshpattanayak/greet-server:1.0 .
+      - docker build --file build/Dockerfiles/Dockerfile.greetServer -t hiteshpattanayak/greet-server:2.0 .
 
   publish-greet-server:
     deps: [package-greet-server]
     cmds:
-      - docker push hiteshpattanayak/greet-server:1.0
+      - docker push hiteshpattanayak/greet-server:2.0
 
   run-greet-server-cmd:
     deps: [compile-greet-server]
