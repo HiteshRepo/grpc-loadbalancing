@@ -6,18 +6,20 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      run: greetclient
+      app: greetclient
   template:
     metadata:
       labels:
-        run: greetclient
+        app: greetclient
     spec:
       containers:
-        - image: hiteshpattanayak/greet-client:11.0
+        - image: hiteshpattanayak/greet-client:4.0
           name: greetclient
           ports:
             - containerPort: 9091
           env:
+            - name: GRPC_SERVER_HOST
+              value: greetserver.default.svc.cluster.local
             - name: GRPC_SVC
               value: greetserver
             - name: POD_NAMESPACE

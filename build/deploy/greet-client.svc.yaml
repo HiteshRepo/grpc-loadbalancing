@@ -12,5 +12,5 @@ spec:
       protocol: TCP
       targetPort: 9091
   selector:
-    run: greetclient
+    app: greetclient
   type: LoadBalancer
