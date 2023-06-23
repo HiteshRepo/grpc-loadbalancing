@@ -12,5 +12,5 @@ spec:
       protocol: TCP
       targetPort: 50051
   selector:
-    run: greetserver
+    app: greetserver
   clusterIP: None

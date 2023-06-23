@@ -6,11 +6,11 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      run: greetserver
+      app: greetserver
   template:
     metadata:
       labels:
-        run: greetserver
+        app: greetserver
     spec:
       containers:
         - image: hiteshpattanayak/greet-server:1.0
